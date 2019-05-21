@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh">
 
 <head>
     <meta charset="UTF-8">
@@ -13,6 +13,15 @@
     <div id="app">
         <div class="page-content">
             <input class='task-input' type="text" v-model='newTodo' @keyup.enter="enterFn">
+            <ul class="task-count">
+                <li>{{unComplete}}个任务未完成</li>
+                <li class="action">
+                    <a :class="{active:visibility!=='unCompleted'&&visibility!=='completed'}" href="#all">所有任务</a>
+                    <a :class="{active:visibility==='unCompleted'}" href="#unCompleted">未完成的任务</a>
+                    <a :class="{active:visibility==='completed'}" href="#completed">完成的任务</a>
+                </li>
+
+            </ul>
             <section>
                 <ul class="todo-list" v-cloak>
                     <li class="todo" v-for='item in filterData'
@@ -27,14 +36,9 @@
                             @blur="edtoEnd(item)" @keyup.enter="edtoEnd(item)" @keyup.esc="cancelEdit(item)" />
                     </li>
                 </ul>
-                <ul class="task-count">
-                    <li>{{unComplete}}个任务未完成</li>
-                    <li class="action">
-                        <a :class="{active:visibility!=='unCompleted'&&visibility!=='completed'}" href="#all">所有任务</a>
-                        <a :class="{active:visibility==='unCompleted'}" href="#unCompleted">未完成的任务</a>
-                        <a :class="{active:visibility==='completed'}" href="#completed">完成的任务</a>
-                    </li>
-                </ul>
+                <button class="clear-completed" @click="removeCompleted" v-show="todos.length > unComplete">
+                    清除已完成任务
+                </button>
             </section>
         </div>
 
@@ -52,15 +56,30 @@
         }
         //list取出所有的值
         var todos = store.fetch("storeData");
+        var filters = {
+            all: function (todos) {
+                return todos;
+            },
+            completed: function (todos) {
+                return todos.filter(item => {
+                    return item.isComplete;
+                })
+            },
+            unCompleted: function (todos) {
+                return todos.filter(item => {
+                    return !item.isComplete;
+                })
+            },
 
+        }
         var vm = new Vue({
             el: "#app",
             data: {
                 todos,
                 newTodo: '',
                 edtorTodos: '', //记录正在编辑的数据,
-                beforeTitle: "", //记录正在编辑的数据的title
-                visibility: "all" //通过这个属性值的变化对数据进行筛选
+                beforeTitle: '', //记录正在编辑的数据的title
+                visibility: 'all' //通过这个属性值的变化对数据进行筛选
             },
             directives: {
                 "focus": {
@@ -82,30 +101,12 @@
             },
             computed: {
                 unComplete() {
-                    return this.todos.filter(item => {
-                            return !item.isComplete
-                        }
-
-                    ).length
+                    return filters.unCompleted(this.todos).length
                 },
                 filterData() {
                     //过滤的时候有三种情况 all completed unCompleted
-                    var filter = {
-                        all: function (todos) {
-                            return todos;
-                        },
-                        completed: function (todos) {
-                            return todos.filter(item => {
-                                return item.isComplete;
-                            })
-                        },
-                        unCompleted: function (todos) {
-                            return todos.filter(item => {
-                                return !item.isComplete;
-                            })
-                        }
-                    }
-                    //如果找到了过滤函数，就返回过滤后的数据，如果没有找到就返回所有的数据
+                    return filters[this.visibility](this.todos)
+                    // //如果找到了过滤函数，就返回过滤后的数据，如果没有找到就返回所有的数据
                     return filter[this.visibility] ? filter[this.visibility](todos) : todos;
                 }
             },
@@ -137,16 +138,26 @@
                     item.text = this.beforeTitle;
                     this.beforeTitle = '';
                     this.edtorTodos = '';
+                },
+                removeCompleted() {
+                    this.todos = filters.unCompleted(this.todos)
                 }
             }
         })
 
-        function hashFn() {
-            var hash = window.location.hash.slice(1);
-            vm.visibility = hash;
+        function onHashChange() {
+            var visibility = window.location.hash.replace(/#\/?/, '')
+            if (filters[visibility]) {
+                vm.visibility = visibility
+            } else {
+                window.location.hash = ''
+                vm.visibility = 'all'
+            }
         }
-        hashFn();
-        window.addEventListener('hashchange', hashFn);
+
+        window.addEventListener('hashchange', onHashChange)
+        onHashChange()
+
     </script>
 </body>
 
